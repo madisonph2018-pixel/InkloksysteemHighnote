@@ -3,60 +3,58 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Inklok Systeem van Highnotes</title>
+<title>Highnotes Inklok Systeem</title>
 
 <style>
-body {
-font-family: Arial, sans-serif;
-background: #f3f4f6;
-display: flex;
-justify-content: center;
-padding: 40px;
+body{
+font-family:Arial;
+background:#f3f4f6;
+display:flex;
+justify-content:center;
+padding:40px;
 }
 
-.container {
-background: white;
-padding: 30px;
-border-radius: 15px;
-width: 600px;
-box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+.container{
+background:white;
+padding:30px;
+border-radius:15px;
+width:600px;
+box-shadow:0 10px 25px rgba(0,0,0,0.1);
 }
 
-h1 { text-align: center; }
+h1{text-align:center;}
 
-input, select, button {
-width: 100%;
-padding: 10px;
-margin-top: 10px;
-border-radius: 8px;
-border: 1px solid #ccc;
-font-size: 14px;
+input,select,button{
+width:100%;
+padding:10px;
+margin-top:10px;
+border-radius:8px;
+border:1px solid #ccc;
 }
 
-button {
-cursor: pointer;
-background: #111827;
-color: white;
-border: none;
+button{
+background:#111827;
+color:white;
+cursor:pointer;
 }
 
-button:hover {
-background: #374151;
+button:hover{
+background:#374151;
 }
 
-.log {
-border: 1px solid #ddd;
-padding: 10px;
-border-radius: 10px;
-margin-top: 10px;
-display: flex;
-justify-content: space-between;
+.log{
+border:1px solid #ddd;
+padding:10px;
+border-radius:10px;
+margin-top:10px;
+display:flex;
+justify-content:space-between;
 }
 
-.status {
-margin-top: 15px;
-font-weight: bold;
-text-align: center;
+.status{
+margin-top:15px;
+font-weight:bold;
+text-align:center;
 }
 </style>
 
@@ -65,10 +63,10 @@ text-align: center;
 
 <div class="container">
 
-<h1>Inklok Systeem van Highnotes</h1>
+<h1>Highnotes Inklok Systeem</h1>
 
-<input type="text" id="nameInput" placeholder="Voer naam in">
-<button onclick="addName()">Opslaan</button>
+<input id="nameInput" placeholder="Naam">
+<button onclick="addName()">Naam opslaan</button>
 
 <select id="nameSelect" onchange="loadData()">
 <option value="">Selecteer naam</option>
@@ -86,15 +84,15 @@ text-align: center;
 
 <script>
 
-let currentName = "";
-let logs = [];
-let status = "Uitgeklokt";
+const WEBHOOK = "PLAK_HIER_JE_DISCORD_WEBHOOK";
 
-const DISCORD_WEBHOOK = "PLAATS_HIER_JE_WEBHOOK";
+let currentName="";
+let logs=[];
+let status="Uitgeklokt";
 
-function sendDiscordLog(message){
+function sendWebhook(message){
 
-fetch(DISCORD_WEBHOOK,{
+fetch(WEBHOOK,{
 method:"POST",
 headers:{
 "Content-Type":"application/json"
@@ -108,10 +106,9 @@ content:message
 
 function addName(){
 
-const input=document.getElementById("nameInput");
-const name=input.value.trim();
+const name=document.getElementById("nameInput").value.trim();
 
-if(!name) return;
+if(!name)return;
 
 let names=JSON.parse(localStorage.getItem("names")||"[]");
 
@@ -120,7 +117,7 @@ names.push(name);
 localStorage.setItem("names",JSON.stringify(names));
 }
 
-input.value="";
+document.getElementById("nameInput").value="";
 loadNames();
 
 }
@@ -133,33 +130,26 @@ const names=JSON.parse(localStorage.getItem("names")||"[]");
 select.innerHTML='<option value="">Selecteer naam</option>';
 
 names.forEach(n=>{
-const option=document.createElement("option");
-option.value=n;
-option.textContent=n;
-select.appendChild(option);
+let o=document.createElement("option");
+o.value=n;
+o.textContent=n;
+select.appendChild(o);
 });
 
 }
 
 function loadData(){
 
-const select=document.getElementById("nameSelect");
-
-currentName=select.value;
-
-if(!currentName) return;
+currentName=document.getElementById("nameSelect").value;
 
 logs=JSON.parse(localStorage.getItem("logs_"+currentName)||"[]");
-
 status=localStorage.getItem("status_"+currentName)||"Uitgeklokt";
 
 updateUI();
 
 }
 
-function saveData(){
-
-if(!currentName) return;
+function save(){
 
 localStorage.setItem("logs_"+currentName,JSON.stringify(logs));
 localStorage.setItem("status_"+currentName,status);
@@ -168,7 +158,8 @@ localStorage.setItem("status_"+currentName,status);
 
 function startWork(){
 
-if(!currentName || status==="Ingeklokt") return;
+if(!currentName)return;
+if(status==="Ingeklokt")return;
 
 status="Ingeklokt";
 
@@ -179,88 +170,86 @@ start:now.toISOString(),
 end:null
 });
 
-saveData();
+save();
 updateUI();
 
 }
 
 function stopWork(){
 
-if(!currentName || status==="Uitgeklokt") return;
+if(!currentName)return;
+if(status==="Uitgeklokt")return;
 
 status="Uitgeklokt";
 
 const now=new Date();
 const last=logs[logs.length-1];
 
-if(last && !last.end){
 last.end=now.toISOString();
-}
 
-const startTime = new Date(last.start).toLocaleString();
-const stopTime = now.toLocaleString();
-const hours = calculateHours(last.start, now);
+const start=new Date(last.start);
+const end=new Date(last.end);
 
-sendDiscordLog(
+const hours=((end-start)/(1000*60*60)).toFixed(2);
+
+sendWebhook(
 `📋 Werk Log
 
 👤 Naam: ${currentName}
-🟢 Start: ${startTime}
-🔴 Stop: ${stopTime}
+🟢 Start: ${start.toLocaleString()}
+🔴 Stop: ${end.toLocaleString()}
 ⏱️ Uren: ${hours}`
 );
 
-saveData();
+save();
 updateUI();
 
 }
 
-function calculateHours(start,end){
+function calcHours(start,end){
 
-if(!start || !end) return "-";
+if(!end)return "-";
 
-const diff=(new Date(end)-new Date(start))/(1000*60*60);
-
-return diff.toFixed(2)+" uur";
+return ((new Date(end)-new Date(start))/(1000*60*60)).toFixed(2)+" uur";
 
 }
 
-function totalHours(){
+function total(){
 
-let total=0;
+let t=0;
 
 logs.forEach(l=>{
-if(l.start && l.end){
-total+=(new Date(l.end)-new Date(l.start))/(1000*60*60);
+if(l.end){
+t+=(new Date(l.end)-new Date(l.start))/(1000*60*60);
 }
 });
 
-return total.toFixed(2);
+return t.toFixed(2);
 
 }
 
 function updateUI(){
 
-document.getElementById("statusText").textContent="Status: "+status;
-document.getElementById("totalText").textContent="Totaal: "+totalHours()+" uur";
+document.getElementById("statusText").innerText="Status: "+status;
+document.getElementById("totalText").innerText="Totaal: "+total()+" uur";
 
-const logsDiv=document.getElementById("logs");
-logsDiv.innerHTML="";
+const div=document.getElementById("logs");
+div.innerHTML="";
 
 logs.forEach(l=>{
 
-const div=document.createElement("div");
-div.className="log";
+const row=document.createElement("div");
+row.className="log";
 
-div.innerHTML=`
+row.innerHTML=`
 <div>
 Start: ${new Date(l.start).toLocaleString()}<br>
 Stop: ${l.end ? new Date(l.end).toLocaleString() : "-"}
 </div>
-<div>${calculateHours(l.start,l.end)}</div>
+<div>${calcHours(l.start,l.end)}</div>
 `;
 
-logsDiv.appendChild(div);
+div.appendChild(row);
 
 });
 
