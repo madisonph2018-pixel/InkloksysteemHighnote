@@ -78,7 +78,99 @@ text-align: center;
 <button onclick="stopWork()">Stop</button>
 
 <div class="status" id="statusText">Status: Uitgeklokt</div>
-<div class="status" id="totalText">Totaal: 0 uur 0 minuten</div>
+<div class="status" id="totalText">Totaal: 0 uur</div>
+
+<div id="logs"></div>
+
+</div>
+
+<script>
+
+let currentName = "";
+let logs = [];
+let status = "Uitgeklokt";
+
+const DISCORD_WEBHOOK = "<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inklok Systeem van Highnotes</title>
+
+<style>
+body {
+font-family: Arial, sans-serif;
+background: #f3f4f6;
+display: flex;
+justify-content: center;
+padding: 40px;
+}
+
+.container {
+background: white;
+padding: 30px;
+border-radius: 15px;
+width: 600px;
+box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+h1 { text-align: center; }
+
+input, select, button {
+width: 100%;
+padding: 10px;
+margin-top: 10px;
+border-radius: 8px;
+border: 1px solid #ccc;
+font-size: 14px;
+}
+
+button {
+cursor: pointer;
+background: #111827;
+color: white;
+border: none;
+}
+
+button:hover {
+background: #374151;
+}
+
+.log {
+border: 1px solid #ddd;
+padding: 10px;
+border-radius: 10px;
+margin-top: 10px;
+display: flex;
+justify-content: space-between;
+}
+
+.status {
+margin-top: 15px;
+font-weight: bold;
+text-align: center;
+}
+</style>
+
+</head>
+<body>
+
+<div class="container">
+
+<h1>Inklok Systeem van Highnotes</h1>
+
+<input type="text" id="nameInput" placeholder="Voer naam in">
+<button onclick="addName()">Opslaan</button>
+
+<select id="nameSelect" onchange="loadData()">
+<option value="">Selecteer naam</option>
+</select>
+
+<button onclick="startWork()">Start</button>
+<button onclick="stopWork()">Stop</button>
+
+<div class="status" id="statusText">Status: Uitgeklokt</div>
+<div class="status" id="totalText">Totaal: 0 uur</div>
 
 <div id="logs"></div>
 
@@ -93,6 +185,7 @@ let status = "Uitgeklokt";
 const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1479225469873291295/IvYEixqITYDg9cZJepMdz43al2BSm9tdpxxkUyKtCWQZ-xd-wBlPBRZ9QeJ_9uRC2J6k";
 
 function sendDiscordLog(message){
+
 fetch(DISCORD_WEBHOOK,{
 method:"POST",
 headers:{
@@ -102,6 +195,7 @@ body:JSON.stringify({
 content:message
 })
 });
+
 }
 
 function addName(){
@@ -120,6 +214,7 @@ localStorage.setItem("names",JSON.stringify(names));
 
 input.value="";
 loadNames();
+
 }
 
 function loadNames(){
@@ -135,19 +230,23 @@ option.value=n;
 option.textContent=n;
 select.appendChild(option);
 });
+
 }
 
 function loadData(){
 
 const select=document.getElementById("nameSelect");
+
 currentName=select.value;
 
 if(!currentName) return;
 
 logs=JSON.parse(localStorage.getItem("logs_"+currentName)||"[]");
+
 status=localStorage.getItem("status_"+currentName)||"Uitgeklokt";
 
 updateUI();
+
 }
 
 function saveData(){
@@ -156,6 +255,7 @@ if(!currentName) return;
 
 localStorage.setItem("logs_"+currentName,JSON.stringify(logs));
 localStorage.setItem("status_"+currentName,status);
+
 }
 
 function startWork(){
@@ -171,10 +271,9 @@ start:now.toISOString(),
 end:null
 });
 
-sendDiscordLog("🟢 **"+currentName+"** is INGEKLOKT om "+now.toLocaleString());
-
 saveData();
 updateUI();
+
 }
 
 function stopWork(){
@@ -191,46 +290,68 @@ if(last && !last.end){
 last.end=now.toISOString();
 }
 
-sendDiscordLog("🔴 **"+currentName+"** is UITGEKLOKT om "+now.toLocaleString());
+const startTime = new Date(last.start);
+const endTime = new Date(last.end);
+
+const diffMs = endTime - startTime;
+
+const hours = Math.floor(diffMs / (1000*60*60));
+const minutes = Math.floor((diffMs % (1000*60*60)) / (1000*60));
+
+const message = `
+📋 Werk Log
+
+👤 Naam: ${currentName}
+🟢 Ingeklokt: ${startTime.toLocaleString()}
+🔴 Uitgeklokt: ${endTime.toLocaleString()}
+⏱️ Gewerkt: ${hours} uur ${minutes} minuten
+`;
+
+sendDiscordLog(message);
 
 saveData();
 updateUI();
+
 }
 
 function calculateHours(start,end){
 
 if(!start || !end) return "-";
 
-const diffMs = new Date(end) - new Date(start);
+const diff=(new Date(end)-new Date(start))/(1000*60);
 
-const hours = Math.floor(diffMs / (1000*60*60));
-const minutes = Math.floor((diffMs % (1000*60*60)) / (1000*60));
+const hours=Math.floor(diff/60);
+const minutes=Math.floor(diff%60);
 
-return hours + " uur " + minutes + " minuten";
+return hours+" uur "+minutes+" min";
+
 }
 
 function totalHours(){
 
-let totalMs=0;
+let total=0;
 
 logs.forEach(l=>{
 if(l.start && l.end){
-totalMs += new Date(l.end) - new Date(l.start);
+total+=(new Date(l.end)-new Date(l.start))/(1000*60);
 }
 });
 
-const hours = Math.floor(totalMs / (1000*60*60));
-const minutes = Math.floor((totalMs % (1000*60*60)) / (1000*60));
+const hours=Math.floor(total/60);
+const minutes=Math.floor(total%60);
 
-return hours + " uur " + minutes + " minuten";
+return hours+" uur "+minutes+" min";
+
 }
 
 function updateUI(){
 
 document.getElementById("statusText").textContent="Status: "+status;
+
 document.getElementById("totalText").textContent="Totaal: "+totalHours();
 
 const logsDiv=document.getElementById("logs");
+
 logsDiv.innerHTML="";
 
 logs.forEach(l=>{
@@ -250,6 +371,204 @@ Stop: ${l.end ? new Date(l.end).toLocaleString() : "-"}
 logsDiv.appendChild(div);
 
 });
+
+}
+
+loadNames();
+
+</script>
+
+</body>
+</html>";
+
+function sendDiscordLog(message){
+
+fetch(DISCORD_WEBHOOK,{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+content:message
+})
+});
+
+}
+
+function addName(){
+
+const input=document.getElementById("nameInput");
+const name=input.value.trim();
+
+if(!name) return;
+
+let names=JSON.parse(localStorage.getItem("names")||"[]");
+
+if(!names.includes(name)){
+names.push(name);
+localStorage.setItem("names",JSON.stringify(names));
+}
+
+input.value="";
+loadNames();
+
+}
+
+function loadNames(){
+
+const select=document.getElementById("nameSelect");
+const names=JSON.parse(localStorage.getItem("names")||"[]");
+
+select.innerHTML='<option value="">Selecteer naam</option>';
+
+names.forEach(n=>{
+const option=document.createElement("option");
+option.value=n;
+option.textContent=n;
+select.appendChild(option);
+});
+
+}
+
+function loadData(){
+
+const select=document.getElementById("nameSelect");
+
+currentName=select.value;
+
+if(!currentName) return;
+
+logs=JSON.parse(localStorage.getItem("logs_"+currentName)||"[]");
+
+status=localStorage.getItem("status_"+currentName)||"Uitgeklokt";
+
+updateUI();
+
+}
+
+function saveData(){
+
+if(!currentName) return;
+
+localStorage.setItem("logs_"+currentName,JSON.stringify(logs));
+localStorage.setItem("status_"+currentName,status);
+
+}
+
+function startWork(){
+
+if(!currentName || status==="Ingeklokt") return;
+
+status="Ingeklokt";
+
+const now=new Date();
+
+logs.push({
+start:now.toISOString(),
+end:null
+});
+
+saveData();
+updateUI();
+
+}
+
+function stopWork(){
+
+if(!currentName || status==="Uitgeklokt") return;
+
+status="Uitgeklokt";
+
+const now=new Date();
+
+const last=logs[logs.length-1];
+
+if(last && !last.end){
+last.end=now.toISOString();
+}
+
+const startTime = new Date(last.start);
+const endTime = new Date(last.end);
+
+const diffMs = endTime - startTime;
+
+const hours = Math.floor(diffMs / (1000*60*60));
+const minutes = Math.floor((diffMs % (1000*60*60)) / (1000*60));
+
+const message = `
+📋 Werk Log
+
+👤 Naam: ${currentName}
+🟢 Ingeklokt: ${startTime.toLocaleString()}
+🔴 Uitgeklokt: ${endTime.toLocaleString()}
+⏱️ Gewerkt: ${hours} uur ${minutes} minuten
+`;
+
+sendDiscordLog(message);
+
+saveData();
+updateUI();
+
+}
+
+function calculateHours(start,end){
+
+if(!start || !end) return "-";
+
+const diff=(new Date(end)-new Date(start))/(1000*60);
+
+const hours=Math.floor(diff/60);
+const minutes=Math.floor(diff%60);
+
+return hours+" uur "+minutes+" min";
+
+}
+
+function totalHours(){
+
+let total=0;
+
+logs.forEach(l=>{
+if(l.start && l.end){
+total+=(new Date(l.end)-new Date(l.start))/(1000*60);
+}
+});
+
+const hours=Math.floor(total/60);
+const minutes=Math.floor(total%60);
+
+return hours+" uur "+minutes+" min";
+
+}
+
+function updateUI(){
+
+document.getElementById("statusText").textContent="Status: "+status;
+
+document.getElementById("totalText").textContent="Totaal: "+totalHours();
+
+const logsDiv=document.getElementById("logs");
+
+logsDiv.innerHTML="";
+
+logs.forEach(l=>{
+
+const div=document.createElement("div");
+
+div.className="log";
+
+div.innerHTML=`
+<div>
+Start: ${new Date(l.start).toLocaleString()}<br>
+Stop: ${l.end ? new Date(l.end).toLocaleString() : "-"}
+</div>
+<div>${calculateHours(l.start,l.end)}</div>
+`;
+
+logsDiv.appendChild(div);
+
+});
+
 }
 
 loadNames();
