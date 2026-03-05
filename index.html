@@ -76,7 +76,6 @@ text-align: center;
 
 <button onclick="startWork()">Start</button>
 <button onclick="stopWork()">Stop</button>
-<button onclick="exportCSV()">Export naar Excel</button>
 
 <div class="status" id="statusText">Status: Uitgeklokt</div>
 <div class="status" id="totalText">Totaal: 0 uur</div>
@@ -91,7 +90,7 @@ let currentName = "";
 let logs = [];
 let status = "Uitgeklokt";
 
-const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1479225469873291295/IvYEixqITYDg9cZJepMdz43al2BSm9tdpxxkUyKtCWQZ-xd-wBlPBRZ9QeJ_9uRC2J6k";
+const DISCORD_WEBHOOK = "PLAATS_HIER_JE_WEBHOOK";
 
 function sendDiscordLog(message){
 
@@ -180,8 +179,6 @@ start:now.toISOString(),
 end:null
 });
 
-sendDiscordLog("🟢 **"+currentName+"** is INGEKLOKT om "+now.toLocaleString());
-
 saveData();
 updateUI();
 
@@ -194,14 +191,24 @@ if(!currentName || status==="Uitgeklokt") return;
 status="Uitgeklokt";
 
 const now=new Date();
-
 const last=logs[logs.length-1];
 
 if(last && !last.end){
 last.end=now.toISOString();
 }
 
-sendDiscordLog("🔴 **"+currentName+"** is UITGEKLOKT om "+now.toLocaleString());
+const startTime = new Date(last.start).toLocaleString();
+const stopTime = now.toLocaleString();
+const hours = calculateHours(last.start, now);
+
+sendDiscordLog(
+`📋 Werk Log
+
+👤 Naam: ${currentName}
+🟢 Start: ${startTime}
+🔴 Stop: ${stopTime}
+⏱️ Uren: ${hours}`
+);
 
 saveData();
 updateUI();
@@ -232,41 +239,17 @@ return total.toFixed(2);
 
 }
 
-function exportCSV(){
-
-if(!currentName) return;
-
-let csv="Naam,Start,Stop,Uren\n";
-
-logs.forEach(l=>{
-csv+=`${currentName},${l.start || ""},${l.end || ""},${calculateHours(l.start,l.end)}\n`;
-});
-
-const blob=new Blob([csv],{type:"text/csv"});
-
-const link=document.createElement("a");
-
-link.href=URL.createObjectURL(blob);
-link.download="uren_"+currentName+".csv";
-
-link.click();
-
-}
-
 function updateUI(){
 
 document.getElementById("statusText").textContent="Status: "+status;
-
 document.getElementById("totalText").textContent="Totaal: "+totalHours()+" uur";
 
 const logsDiv=document.getElementById("logs");
-
 logsDiv.innerHTML="";
 
 logs.forEach(l=>{
 
 const div=document.createElement("div");
-
 div.className="log";
 
 div.innerHTML=`
